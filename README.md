@@ -4,3 +4,5 @@ enigma2
 =======
 
 OpenViX Enigma2 
+
+Support DreamBox Devices

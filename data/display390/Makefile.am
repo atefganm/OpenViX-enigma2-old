@@ -1,4 +1,4 @@
 installdir = $(pkgdatadir)/display/skin_default
-dist_install_DATA = *.png *.xml piconprev.png prev.png
+dist_install_DATA = *.png *.xml
 
 datainstalldir = $(pkgdatadir)/display

@@ -369,8 +369,8 @@ class AVSwitch:
                         f = open("/proc/stb/denc/0/wss", "w")
                         f.write(wss)
                         f.close()
-                except:
-                        pass
+        except:
+                pass
 
         def setPolicy43(self, cfgelement):
                 print "[AVSwitch] setting policy: %s" % cfgelement.value

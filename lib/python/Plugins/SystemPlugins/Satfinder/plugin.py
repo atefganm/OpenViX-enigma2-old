@@ -853,18 +853,6 @@ class SatfinderExtra(Satfinder):
 
 			return True
 
-	def monitorTunerLock(self, currentProcess):
-		while True:
-			if self.currentProcess != currentProcess:
-				return
-			frontendStatus = {}
-			self.frontend.getFrontendStatus(frontendStatus)
-			if frontendStatus["tuner_state"] != "LOCKED":
-				print "[monitorTunerLock] starting again from scratch"
-				self.getCurrentTsidOnid(False) # if tuner lock fails start again from beginning
-				return
-			time.sleep(1.0)
-
 	def keyReadServices(self):
 		if not self.serviceList:
 			return

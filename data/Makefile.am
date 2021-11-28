@@ -35,6 +35,10 @@ if HAVE_COLORLCD128
 SUBDIRS += display128
 endif
 
+if HAVE_COLORLCD128DM
+SUBDIRS += display128dm
+endif
+
 if HAVE_COLORLCD220
 SUBDIRS += display220
 endif
@@ -73,10 +77,6 @@ endif
 
 if HAVE_BWLCD128
 SUBDIRS += vfd128
-endif
-
-if HAVE_BWLCD128DM
-SUBDIRS += display128dm
 endif
 
 if HAVE_7SEGMENT

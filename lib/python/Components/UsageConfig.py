@@ -1197,6 +1197,24 @@ def preferredInstantRecordPath():
 def defaultMoviePath():
 	return defaultRecordingLocation(config.usage.default_path.value)
 
+
+def showrotorpositionChoicesUpdate(update=False):
+	choiceslist = [("no", _("no")), ("yes", _("yes")), ("withtext", _("with text")), ("tunername", _("with tuner name"))]
+	count = 0
+	for x in nimmanager.nim_slots:
+		if nimmanager.getRotorSatListForNim(x.slot, only_first=True):
+			choiceslist.append((str(x.slot), x.getSlotName() + _(" (auto detection)")))
+			count += 1
+	if count > 1:
+		choiceslist.append(("all", _("all tuners") + _(" (auto detection)")))
+		choiceslist.remove(("tunername", _("with tuner name")))
+	if not update:
+		config.misc.showrotorposition = ConfigSelection(default="no", choices=choiceslist)
+	else:
+		config.misc.showrotorposition.setChoices(choiceslist, "no")
+	SystemInfo["isRotorTuner"] = count > 0
+
+
 def upgradeConfig():
 	if config.version.value < 53023:
 		def getOldValue(name):

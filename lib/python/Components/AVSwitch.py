@@ -358,6 +358,19 @@ class AVSwitch:
                 except IOError:
                         print "[AVSwitch] setting aspect failed."
 
+        def setWss(self, cfgelement):
+                if not cfgelement.value:
+                        wss = "auto(4:3_off)"
+                else:
+                        wss = "auto"
+                if os.path.exists("/proc/stb/denc/0/wss"):
+                        print "[AVSwitch] setting wss: %s" % wss
+                        f = open("/proc/stb/denc/0/wss", "w")
+                        f.write(wss)
+                        f.close()
+        except:
+                pass
+
         def setPolicy43(self, cfgelement):
                 print "[AVSwitch] setting policy: %s" % cfgelement.value
                 arw = "0"

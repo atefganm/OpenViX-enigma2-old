@@ -2,8 +2,8 @@ from config import config, ConfigSlider, ConfigSelection, ConfigSubDict, ConfigY
 from Components.About import about
 from Tools.CList import CList
 from Tools.HardwareInfo import HardwareInfo
-from enigma import eAVSwitch, eDVBVolumecontrol, getDesktop
-from boxbranding import getBoxType, getMachineBuild, getBrandOEM
+from enigma import eAVSwitch, getDesktop
+from boxbranding import getMachineBuild, getBoxType, getBrandOEM, getDisplayType, getHaveRCA, getHaveDVI, getHaveYUV, getHaveSCART, getHaveAVJACK, getHaveSCARTYUV, getHaveHDMI, getMachineMtdRoot
 from SystemInfo import SystemInfo
 import os
 from time import sleep
@@ -25,11 +25,8 @@ has_rca = SystemInfo["HaveRCA"]
 has_avjack = SystemInfo["HaveAVJACK"]
 
 config.av = ConfigSubsection()
-if getBrandOEM() in ('azbox',):
-	config.av.edid_override = ConfigYesNo(default=True)
-else:
-	config.av.edid_override = ConfigYesNo(default=False)
 
+config.av.edid_override = ConfigYesNo(default = False)
 
 class AVSwitch:
 	print("BoxBranding", "MachineBuild", getMachineBuild())
@@ -109,9 +106,6 @@ class AVSwitch:
 		"640x480": {60: "640x480"}
 	}
 
-	modes["Scart"] = ["PAL", "NTSC", "Multi"]
-	# modes["DVI-PC"] = ["PC"]
-
 	if (about.getChipSetString() in ('7366', '7376', '5272s', '7444', '7445', '7445s')):
 		modes["HDMI"] = ["720p", "1080p", "2160p", "1080i", "576p", "576i", "480p", "480i"]
 		widescreen_modes = {"720p", "1080p", "1080i", "2160p"}
@@ -147,30 +141,15 @@ class AVSwitch:
 
 	print("[AVSwitch] Modes-B are %s" % modes)
 
-	# if modes.has_key("DVI-PC") and not getModeList("DVI-PC"):
-	# 	print "[AVSwitch] remove DVI-PC because of not existing modes"
-	# 	del modes["DVI-PC"]
-	if "YPbPr" in modes and not has_yuv:
-		del modes["YPbPr"]
-	if "Scart" in modes and not has_scart and not has_rca and not has_avjack:
-			del modes["Scart"]
-
-	if getBoxType() in ('mutant2400',):
-		f = open("/proc/stb/info/board_revision", "r").read()
-		if f >= "2":
-			del modes["YPbPr"]
-
 	def __init__(self):
 		self.last_modes_preferred = []
 		self.on_hotplug = CList()
 		self.current_mode = None
 		self.current_port = None
-
 		self.readAvailableModes()
 		self.is24hzAvailable()
-
-		self.readPreferredModes()
 		self.createConfig()
+		self.readPreferredModes()
 
 	def readAvailableModes(self):
 		try:
@@ -178,7 +157,7 @@ class AVSwitch:
 			modes = f.read()[:-1]
 			f.close()
 		except IOError:
-			print "[AVSwitch] couldn't read available videomodes."
+			print "[VideoHardware] couldn't read available videomodes."
 			modes = []
 			return modes
 		return modes.split(' ')
@@ -208,7 +187,6 @@ class AVSwitch:
 
 		if len(self.modes_preferred) <= 2:
 			print "[AVSwitch] preferend modes not ok, possible driver failer, len=", len(self.modes_preferred)
-			self.modes_preferred = self.readAvailableModes()
 
 		if self.modes_preferred != self.last_modes_preferred:
 			self.last_modes_preferred = self.modes_preferred
@@ -234,15 +212,13 @@ class AVSwitch:
 			if port != "HDMI":
 				if mode not in self.readAvailableModes():
 					return False
-			elif mode not in self.modes_preferred:
-				return False
 		return True
 
 	def isWidescreenMode(self, port, mode):
 		return mode in self.widescreen_modes
 
 	def setMode(self, port, mode, rate, force=None):
-		print "[AVSwitch] setMode - port: %s, mode: %s, rate: %s" % (port, mode, rate)
+		print "[VideoHardware] setMode - port: %s, mode: %s, rate: %s" % (port, mode, rate)
 
 		# config.av.videoport.setValue(port)
 		# we can ignore "port"
@@ -267,6 +243,9 @@ class AVSwitch:
 			f = open("/proc/stb/video/videomode_50hz", "w")
 			f.write(mode_50)
 			f.close()
+		except IOError:
+			print "[AVSwitch] cannot open /proc/stb/video/videomode_50hz"
+		try:
 			f = open("/proc/stb/video/videomode_60hz", "w")
 			f.write(mode_60)
 			f.close()
@@ -284,15 +263,6 @@ class AVSwitch:
 				open("/proc/stb/video/videomode_24hz", "w").write(mode_24)
 			except IOError:
 				print "[VideoHardware] cannot open /proc/stb/video/videomode_24hz"
-
-		if getBrandOEM() in ('gigablue',):
-			try:
-				# use 50Hz mode (if available) for booting
-				f = open("/etc/videomode", "w")
-				f.write(mode_50)
-				f.close()
-			except IOError:
-				print "[AVSwitch] writing initial videomode to /etc/videomode failed."
 
 		map = {"cvbs": 0, "rgb": 1, "svideo": 2, "yuv": 3}
 		self.setColorFormat(map[config.av.colorformat.value])
@@ -400,13 +370,13 @@ class AVSwitch:
 	def setConfiguredMode(self):
 		port = config.av.videoport.value
 		if port not in config.av.videomode:
-			print "[AVSwitch] current port not available, not setting videomode"
+			print "[VideoHardware] current port not available, not setting videomode"
 			return
 
 		mode = config.av.videomode[port].value
 
 		if mode not in config.av.videorate:
-			print "[AVSwitch] current mode not available, not setting videomode"
+			print "[VideoHardware] current mode not available, not setting videomode"
 			return
 
 		rate = config.av.videorate[mode].value
@@ -440,12 +410,9 @@ class AVSwitch:
 		arw = "0"
 		try:
 			if about.getChipSetString() in ('meson-6', 'meson-64'):
-				if cfgelement.value == "panscan":
-					arw = "11"
-				if cfgelement.value == "letterbox":
-					arw = "12"
-				if cfgelement.value == "bestfit":
-					arw = "10"
+				if cfgelement.value == "panscan" : arw = "11"
+				if cfgelement.value == "letterbox" : arw = "12"
+				if cfgelement.value == "bestfit" : arw = "10"
 				open("/sys/class/video/screen_mode", "w").write(arw)
 			else:
 				f = open("/proc/stb/video/policy", "w")
@@ -456,7 +423,7 @@ class AVSwitch:
 
 	def setPolicy169(self, cfgelement):
 		if os.path.exists("/proc/stb/video/policy2"):
-			print "[AVSwitch] setting policy2: %s" % cfgelement.value
+			print "[VideoHardware] setting policy2: %s" % cfgelement.value
 			f = open("/proc/stb/video/policy2", "w")
 			f.write(cfgelement.value)
 			f.close()
@@ -465,7 +432,7 @@ class AVSwitch:
 		ret = (16, 9)
 		port = config.av.videoport.value
 		if port not in config.av.videomode:
-			print "current port not available in getOutputAspect!!! force 16:9"
+			print "[VideoHardware] current port not available in getOutputAspect!!! force 16:9"
 		else:
 			mode = config.av.videomode[port].value
 			force_widescreen = self.isWidescreenMode(port, mode)
@@ -520,10 +487,7 @@ iAVSwitch = AVSwitch()
 
 
 def InitAVSwitch():
-	if getBoxType() == 'vuduo' or getBoxType().startswith('ixuss'):
-		config.av.yuvenabled = ConfigBoolean(default=False)
-	else:
-		config.av.yuvenabled = ConfigBoolean(default=True)
+	config.av.yuvenabled = ConfigBoolean(default=True)
 	config.av.osd_alpha = ConfigSlider(default=255, increment=5, limits=(20, 255)) # Make openATV compatible with some plugins who still use config.av.osd_alpha
 	colorformat_choices = {"cvbs": _("CVBS"), "rgb": _("RGB"), "svideo": _("S-Video")}
 	# when YUV is not enabled, don't let the user select it
@@ -597,8 +561,6 @@ def InitAVSwitch():
 			"auto": _("Automatic")},
 			default="16:9")
 
-	# Only add a setting for 16:9+ policy when /proc/stb/video/policy2 exists
-	if os.path.exists("/proc/stb/video/policy2"):
 		# Some boxes have a redundant proc entry for policy2 choices, but some don't (The choices are from a 16:9 point of view anyways)
 		if os.path.exists("/proc/stb/video/policy2_choices"):
 			policy2_choices_proc = "/proc/stb/video/policy2_choices"
@@ -704,8 +666,7 @@ def InitAVSwitch():
 	config.av.aspect.addNotifier(iAVSwitch.setAspect)
 	config.av.wss.addNotifier(iAVSwitch.setWss)
 	config.av.policy_43.addNotifier(iAVSwitch.setPolicy43)
-	if hasattr(config.av, 'policy_169'):
-		config.av.policy_169.addNotifier(iAVSwitch.setPolicy169)
+	config.av.policy_169.addNotifier(iAVSwitch.setPolicy169)
 
 	def setColorFormat(configElement):
 		if config.av.videoport and config.av.videoport.value in ("YPbPr", "Scart-YPbPr"):
@@ -713,12 +674,7 @@ def InitAVSwitch():
 		elif config.av.videoport and config.av.videoport.value in ("RCA"):
 			iAVSwitch.setColorFormat(0)
 		else:
-			if getBoxType() == 'et6x00':
-				map = {"cvbs": 3, "rgb": 3, "svideo": 2, "yuv": 3}
-			elif getBoxType() == 'gbquad' or getBoxType() == 'gbquadplus' or getBoxType().startswith('et'):
-				map = {"cvbs": 0, "rgb": 3, "svideo": 2, "yuv": 3}
-			else:
-				map = {"cvbs": 0, "rgb": 1, "svideo": 2, "yuv": 3}
+			map = {"cvbs": 0, "rgb": 1, "svideo": 2, "yuv": 3}
 			iAVSwitch.setColorFormat(map[configElement.value])
 	config.av.colorformat.addNotifier(setColorFormat)
 
@@ -779,15 +735,7 @@ def InitAVSwitch():
 				f.close()
 			except:
 				pass
-		if getBoxType() in ('vusolo4k', 'vuuno4k', 'vuuno4kse', 'vuultimo4k', 'vuduo4k', 'vuduo4kse'):
-			config.av.hdmicolorspace = ConfigSelection(choices={
-					"Edid(Auto)": _("Auto"),
-					"Hdmi_Rgb": _("RGB"),
-					"444": _("YCbCr444"),
-					"422": _("YCbCr422"),
-					"420": _("YCbCr420")},
-					default="Edid(Auto)")
-		elif getBoxType() in ('dm900', 'dm920', 'vuzero4k'):
+		if getBoxType() in ('dm900', 'dm920', 'vuzero4k'):
 			config.av.hdmicolorspace = ConfigSelection(choices={
 					"Edid(Auto)": _("Auto"),
 					"Hdmi_Rgb": _("RGB"),
@@ -1102,9 +1050,6 @@ def InitAVSwitch():
 		if getBoxType() in ('dm900', 'dm920', 'dm7080', 'dm800'):
 			choice_list = [("use_hdmi_caps", _("controlled by HDMI")), ("force_ac3", _("convert to AC3")), ("multichannel", _("convert to multi-channel PCM")), ("hdmi_best", _("use best / controlled by HDMI")), ("force_ddp", _("force AC3plus"))]
 			config.av.transcodeac3plus = ConfigSelection(choices=choice_list, default="force_ac3")
-		elif getBoxType() in ('gbquad4k', 'gbue4k', 'gbx34k'):
-			choice_list = [("downmix", _("Downmix")), ("passthrough", _("Passthrough")), ("force_ac3", _("convert to AC3")), ("multichannel", _("convert to multi-channel PCM")), ("force_dts", _("convert to DTS"))]
-			config.av.transcodeac3plus = ConfigSelection(choices=choice_list, default="force_ac3")
 		else:
 			choice_list = [("use_hdmi_caps", _("controlled by HDMI")), ("force_ac3", _("convert to AC3"))]
 			config.av.transcodeac3plus = ConfigSelection(choices=choice_list, default="force_ac3")
@@ -1186,9 +1131,6 @@ def InitAVSwitch():
 			f.close()
 		if getBoxType() in ('dm900', 'dm920', 'dm7080', 'dm800'):
 			choice_list = [("downmix", _("Downmix")), ("passthrough", _("Passthrough")), ("multichannel", _("convert to multi-channel PCM")), ("hdmi_best", _("use best / controlled by HDMI"))]
-			config.av.downmix_aac = ConfigSelection(choices=choice_list, default="downmix")
-		elif getBoxType() in ('gbquad4k', 'gbue4k', 'gbx34k'):
-			choice_list = [("downmix", _("Downmix")), ("passthrough", _("Passthrough")), ("multichannel", _("convert to multi-channel PCM")), ("force_ac3", _("convert to AC3")), ("force_dts", _("convert to DTS")), ("use_hdmi_cacenter", _("use_hdmi_cacenter")), ("wide", _("wide")), ("extrawide", _("extrawide"))]
 			config.av.downmix_aac = ConfigSelection(choices=choice_list, default="downmix")
 		else:
 			config.av.downmix_aac = ConfigYesNo(default=True)
@@ -1286,11 +1228,7 @@ def InitAVSwitch():
 			except IOError:
 				print "[AVSwitch] couldn't write pep_scaler_sharpness"
 
-		if getBoxType() in ('gbquad', 'gbquadplus'):
-			config.av.scaler_sharpness = ConfigSlider(default=5, limits=(0, 26))
-		else:
-			config.av.scaler_sharpness = ConfigSlider(default=13, limits=(0, 26))
-		config.av.scaler_sharpness.addNotifier(setScaler_sharpness)
+		config.av.scaler_sharpness = ConfigSlider(default=13, limits=(0, 26))
 	else:
 		config.av.scaler_sharpness = NoSave(ConfigNothing())
 
@@ -1308,20 +1246,20 @@ class VideomodeHotplug:
 		iAVSwitch.on_hotplug.remove(self.hotplug)
 
 	def hotplug(self, what):
-		print "[AVSwitch] hotplug detected on port '%s'" % what
+		print "[VideoHardware] hotplug detected on port '%s'" % what
 		port = config.av.videoport.value
 		mode = config.av.videomode[port].value
 		rate = config.av.videorate[mode].value
 
 		if not iAVSwitch.isModeAvailable(port, mode, rate):
-			print "[AVSwitch] mode %s/%s/%s went away!" % (port, mode, rate)
+			print "[VideoHardware] mode %s/%s/%s went away!" % (port, mode, rate)
 			modelist = iAVSwitch.getModeList(port)
 			if not len(modelist):
-				print "[AVSwitch] sorry, no other mode is available (unplug?). Doing nothing."
+				print "[VideoHardware] sorry, no other mode is available (unplug?). Doing nothing."
 				return
 			mode = modelist[0][0]
 			rate = modelist[0][1]
-			print "[AVSwitch] setting %s/%s/%s" % (port, mode, rate)
+			print "[VideoHardware] setting %s/%s/%s" % (port, mode, rate)
 			iAVSwitch.setMode(port, mode, rate)
 
 

@@ -561,6 +561,8 @@ def InitAVSwitch():
 			"auto": _("Automatic")},
 			default="16:9")
 
+	# Only add a setting for 16:9+ policy when /proc/stb/video/policy2 exists
+	if os.path.exists("/proc/stb/video/policy2"):
 		# Some boxes have a redundant proc entry for policy2 choices, but some don't (The choices are from a 16:9 point of view anyways)
 		if os.path.exists("/proc/stb/video/policy2_choices"):
 			policy2_choices_proc = "/proc/stb/video/policy2_choices"

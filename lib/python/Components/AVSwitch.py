@@ -32,15 +32,15 @@ else:
 
 
 class AVSwitch:
-		print("BoxBranding", "MachineBuild", getMachineBuild())
-		print("BoxBranding", "BoxType", getBoxType())
-		print("BoxBranding", "BrandOEM", getBrandOEM())
-		print("BoxBranding", "DisplayType", getDisplayType())
-		print("AVSwitch", "hasRCA", SystemInfo["hasRCA"])
-		print("AVSwitch", "hasSCART", SystemInfo["hasScart"])
-		print("AVSwitch", "hasJACK", SystemInfo["hasJack"])
-		print("AVSwitch", "hasYUV", SystemInfo["hasYUV"])
-		print("AVSwitch", "HasScartYUV", SystemInfo["hasScartYUV"])
+	print("BoxBranding", "MachineBuild", getMachineBuild())
+	print("BoxBranding", "BoxType", getBoxType())
+	print("BoxBranding", "BrandOEM", getBrandOEM())
+	print("BoxBranding", "DisplayType", getDisplayType())
+	print("AVSwitch", "hasRCA", SystemInfo["hasRCA"])
+	print("AVSwitch", "hasSCART", SystemInfo["hasScart"])
+	print("AVSwitch", "hasJACK", SystemInfo["hasJack"])
+	print("AVSwitch", "hasYUV", SystemInfo["hasYUV"])
+	print("AVSwitch", "HasScartYUV", SystemInfo["hasScartYUV"])
 
 	hw_type = HardwareInfo().get_device_name()
 	rates = {} # high-level, use selectable modes.

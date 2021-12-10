@@ -32,6 +32,16 @@ else:
 
 
 class AVSwitch:
+		print("BoxBranding", "MachineBuild", getMachineBuild())
+		print("BoxBranding", "BoxType", getBoxType())
+		print("BoxBranding", "BrandOEM", getBrandOEM())
+		print("BoxBranding", "DisplayType", getDisplayType())
+		print("AVSwitch", "hasRCA", SystemInfo["hasRCA"])
+		print("AVSwitch", "hasSCART", SystemInfo["hasScart"])
+		print("AVSwitch", "hasJACK", SystemInfo["hasJack"])
+		print("AVSwitch", "hasYUV", SystemInfo["hasYUV"])
+		print("AVSwitch", "HasScartYUV", SystemInfo["hasScartYUV"])
+
 	hw_type = HardwareInfo().get_device_name()
 	rates = {} # high-level, use selectable modes.
 	modes = {}  # a list of (high-level) modes for a certain port.
@@ -121,9 +131,21 @@ class AVSwitch:
 		modes["HDMI"] = ["720p", "1080i", "576p", "576i", "480p", "480i"]
 		widescreen_modes = {"720p", "1080i"}
 
-	modes["YPbPr"] = modes["HDMI"]
-	if has_scartyuv:
-		modes["Scart-YPbPr"] = modes["HDMI"]
+	modes['YPbPr'] = modes['HDMI']
+	if getBrandOEM() == 'vuplus' and getBoxType() not in ('vusolo4k', 'vuuno4k', 'vuuno4kse', 'vuzero4k', 'vuultimo4k'):
+		modes['Scart-YPbPr'] = modes['HDMI']
+	no_YPbPr = ('dm500hd', 'dm500hdv2', 'dm800', 'dm800se', 'dm520', 'dm525', 'dm7080', 'dm820', 'dm900', 'dm920', 'e3hd', 'ebox7358', 'eboxlumi', 'ebox5100', 'enfinity', 'et4x00', 'formuler4turbo', 'gbquad4k', 'gbue4k', 'gbx1', 'gbx3', 'iqonios300hd', 'ixusszero', 'mbmicro', 'mbmicrov2', 'mbtwinplus', 'mutant11', 'mutant51', 'mutant500c', 'mutant1200', 'mutant1500', 'odimm7', 'optimussos1', 'osmega', 'osmini', 'osminiplus', 'osnino', 'sf128', 'sf138', 'sf4008', 'tm2t', 'tmnano', 'tmnano2super', 'tmnano3t', 'tmnanose', 'tmnanosecombo', 'tmnanoseplus', 'tmnanosem2', 'tmnanosem2plus', 'tmnanom3', 'tmsingle', 'tmtwin4k', 'uniboxhd1', 'vusolo2', 'vuzero4k', 'vusolo4k', 'vuuno4k', 'vuuno4kse', 'vuultimo4k', 'xp1000')
+	yellow_RCA_no_scart = ('formuler1', 'formuler1tc', 'formuler4turbo', 'gb800ueplus', 'gbultraue', 'mbmicro', 'mbmicrov2', 'mbtwinplus', 'mutant11', 'mutant500c', 'osmega', 'osmini', 'osminiplus', 'sf138', 'tmnano', 'tmnanose', 'tmnanosecombo', 'tmnanosem2', 'tmnanoseplus', 'tmnanosem2plus', 'tmnano2super', 'tmnano3t', 'xpeedlx3')
+	no_yellow_RCA__no_scart = ('dm900', 'et5x00', 'et6x00', 'gbquad', 'gbquad4k', 'gbue4k', 'gbx1', 'gbx3', 'ixussone', 'mutant51', 'mutant1500', 'osnino', 'sf4008', 'tmnano2t', 'tmnanom3', 'tmtwin4k', 'vuzero4k', 'vusolo4k', 'vuuno4k', 'vuuno4kse', 'vuultimo4k')
+	if 'YPbPr' in modes and getBoxType() in no_YPbPr:
+		del modes['YPbPr']
+	if 'Scart' in modes and getBoxType() in yellow_RCA_no_scart:
+		modes['RCA'] = modes['Scart']
+		del modes['Scart']
+	if 'Scart' in modes and getBoxType() in no_yellow_RCA__no_scart:
+		del modes['Scart']
+
+	print("[AVSwitch] Modes-B are %s" % modes)
 
 	# if modes.has_key("DVI-PC") and not getModeList("DVI-PC"):
 	# 	print "[AVSwitch] remove DVI-PC because of not existing modes"
@@ -1031,13 +1053,6 @@ def InitAVSwitch():
 			open("/proc/stb/audio/multichannel_pcm", "w").write(configElement.value and "enable" or "disable")
 		config.av.pcm_multichannel = ConfigYesNo(default=False)
 		config.av.pcm_multichannel.addNotifier(setPCMMultichannel)
-
-	def setVolumeStepsize(configElement):
-		eDVBVolumecontrol.getInstance().setVolumeSteps(int(configElement.value))
-	config.av.volume_stepsize = ConfigSelectionNumber(1, 10, 1, default=5)
-	config.av.volume_stepsize_fastmode = ConfigSelectionNumber(1, 10, 1, default=5)
-	config.av.volume_hide_mute = ConfigYesNo(default=True)
-	config.av.volume_stepsize.addNotifier(setVolumeStepsize)
 
 	try:
 		f = open("/proc/stb/audio/ac3_choices", "r")

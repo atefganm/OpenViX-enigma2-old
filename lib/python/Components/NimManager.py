@@ -13,8 +13,6 @@ from datetime import datetime
 
 import xml.etree.cElementTree
 
-from Components.About import about
-
 config.unicable = ConfigSubsection()
 
 
@@ -118,7 +116,7 @@ class SecConfigure:
 
 	def linkNIMs(self, sec, nim1, nim2):
 		print "[SecConfigure] link tuner", nim1, "to tuner", nim2
-		if (nim2 == nim1 - 1) or '7356' in about.getChipSetString():
+		if (nim2 == nim1 - 1) or HardwareInfo().get_device_model() == "vusolo2":
 			self.linkInternally(nim1)
 		sec.setTunerLinked(nim1, nim2)
 
@@ -517,6 +515,8 @@ class SecConfigure:
 						sec.setVoltageMode(switchParam._14V)
 					elif currSat.voltage.value == "18V":
 						sec.setVoltageMode(switchParam._18V)
+					elif currSat.voltage.value == "0V":
+						sec.setVoltageMode(switchParam._0V)
 
 					if currSat.tonemode.value == "band":
 						sec.setToneMode(switchParam.HILO)
@@ -578,8 +578,6 @@ class NIM(object):
 				self.combined = not(os.path.exists("/proc/stb/frontend/%d/mode" % self.frontend_id) or self.isFBCTuner())
 				for type in types:
 					self.multi_type[str(types.index(type))] = type
-			elif len(self.multi_type) > 1:
-				print "[NIM] DVB API not reporting tuner %d as multitype" % self.frontend_id
 
 	def getTunerTypesEnabled(self):
 		try:
@@ -642,17 +640,13 @@ class NIM(object):
 
 	def setInternalLink(self):
 		if self.internally_connectable is not None:
-			print "[NimManager] setting internal link on frontend id", self.frontend_id
-			f = open("/proc/stb/frontend/%d/rf_switch" % self.frontend_id, "w")
-			f.write("internal")
-			f.close()
+			print "[NIM] setting internal link on frontend id", self.frontend_id
+			open("/proc/stb/frontend/%d/rf_switch" % self.frontend_id, "w").write("internal")
 
 	def removeInternalLink(self):
 		if self.internally_connectable is not None:
-			print "[NimManager] removing internal link on frontend id", self.frontend_id
-			f = open("/proc/stb/frontend/%d/rf_switch" % self.frontend_id, "w")
-			f.write("external")
-			f.close()
+			print "[NIM] removing internal link on frontend id", self.frontend_id
+			open("/proc/stb/frontend/%d/rf_switch" % self.frontend_id, "w").write("external")
 
 	def isMultiType(self):
 		return not self.isCombined() and bool(len(self.multi_type))
@@ -678,7 +672,6 @@ class NIM(object):
 
 	def isT2MI(self):
 		# Check if t2mi feature exists using procfs due to missing FE_CAN_T2MI in DVB API
-		# TODO: Ask manufactures to add /proc/stb/frontend/%d/t2mi entry on supported frontends
 		return os.path.exists("/proc/stb/frontend/%d/t2mi" % self.frontend_id)
 
 	def supportsBlindScan(self):
@@ -885,10 +878,6 @@ class NimManager:
 		# nim_slots is an array which has exactly one entry for each slot, even for empty ones.
 		self.nim_slots = []
 
-		if config.clientmode.enabled.value:
-			print "[NimManager][enumerateNIMs] Receiver in client mode. Local NIMs will be ignored."
-			return
-
 		try:
 			nimfile = open("/proc/bus/nim_sockets")
 		except IOError:
@@ -954,7 +943,7 @@ class NimManager:
 			entry["internally_connectable"] = None
 			if "frontend_device" in entry: # check if internally connectable
 				if os.path.exists("/proc/stb/frontend/%d/rf_switch" % entry["frontend_device"]) and (not id or entries[id]["name"] == entries[id - 1]["name"]):
-					if '7356' in about.getChipSetString():
+					if HardwareInfo().get_device_model() == "vusolo2":
 						if not id:
 							entry["internally_connectable"] = 1
 					elif id:
@@ -1359,7 +1348,7 @@ def InitNimManager(nimmgr, update_slots=[]):
 		("diseqc_a_b", "DiSEqC A/B"), ("diseqc_a_b_c_d", "DiSEqC A/B/C/D"),
 		("positioner", _("Positioner")), ("positioner_select", _("Positioner (selecting satellites)"))]
 
-	positioner_mode_choices = [("usals", _("USALS")), ("manual", _("manual"))]
+	positioner_mode_choices = [("usals", "USALS"), ("manual", _("manual"))]
 
 	diseqc_satlist_choices = [(3600, _('automatic'), 1), (3601, _('nothing connected'), 1)] + nimmgr.satList
 
@@ -1370,12 +1359,12 @@ def InitNimManager(nimmgr, update_slots=[]):
 		(3601, _('All satellites 1 (USALS)'), 1), (3602, _('All satellites 2 (USALS)'), 1),
 		(3603, _('All satellites 3 (USALS)'), 1), (3604, _('All satellites 4 (USALS)'), 1), (3605, _('Selecting satellites 1 (USALS)'), 1), (3606, _('Selecting satellites 2 (USALS)'), 1)]
 	advanced_lnb_choices = [("0", _("not configured"))] + [(str(y), "LNB " + str(y)) for y in range(1, 65)]
-	advanced_voltage_choices = [("polarization", _("Polarization")), ("13V", _("13 V")), ("18V", _("18 V"))]
+	advanced_voltage_choices = [("polarization", _("Polarization")), ("13V", _("13 V")), ("18V", _("18 V")), ("0V", _("Externally powered"))]
 	advanced_tonemode_choices = [("band", _("Band")), ("on", _("On")), ("off", _("Off"))]
 	advanced_lnb_toneburst_choices = [("none", _("None")), ("A", _("A")), ("B", _("B"))]
-	advanced_lnb_allsat_diseqcmode_choices = [("1_2", _("1.2"))]
-	advanced_lnb_satposdepends_diseqcmode_choices = [("none", _("None")), ("1_0", _("1.0")), ("1_1", _("1.1"))]
-	advanced_lnb_diseqcmode_choices = [("none", _("None")), ("1_0", _("1.0")), ("1_1", _("1.1")), ("1_2", _("1.2"))]
+	advanced_lnb_allsat_diseqcmode_choices = [("1_2", "1.2")]
+	advanced_lnb_satposdepends_diseqcmode_choices = [("none", _("None")), ("1_0", "1.0"), ("1_1", "1.1")]
+	advanced_lnb_diseqcmode_choices = [("none", _("None")), ("1_0", "1.0"), ("1_1", "1.1"), ("1_2", "1.2")]
 	advanced_lnb_commandOrder1_0_choices = [("ct", "DiSEqC 1.0, toneburst"), ("tc", "toneburst, DiSEqC 1.0")]
 	advanced_lnb_commandOrder_choices = [
 		("ct", "DiSEqC 1.0, toneburst"), ("tc", "toneburst, DiSEqC 1.0"),
@@ -1403,7 +1392,7 @@ def InitNimManager(nimmgr, update_slots=[]):
 					section.positionNumber = ConfigSelection(["%d" % (x + 1) for x in range(configEntry.value)], default="%d" % min(lnb, configEntry.value))
 
 				def scrListChanged(productparameters, srcfrequencylist, configEntry):
-					section.format = ConfigSelection([("unicable", _("SCR Unicable")), ("jess", _("SCR JESS"))], default=getformat(productparameters.get("format", "unicable"), configEntry.index))
+					section.format = ConfigSelection(["unicable", "jess"], default=getformat(productparameters.get("format", "unicable"), configEntry.index))
 					section.scrfrequency = ConfigInteger(default=int(srcfrequencylist[configEntry.index]))
 					section.positions = ConfigInteger(default=int(productparameters.get("positions", 1)))
 					section.positions.addNotifier(positionsChanged)
@@ -1552,17 +1541,13 @@ def InitNimManager(nimmgr, update_slots=[]):
 		fe_id = configElement.fe_id
 		slot_id = configElement.slot_id
 		if os.path.exists("/proc/stb/frontend/%d/use_scpc_optimized_search_range" % fe_id):
-			f = open("/proc/stb/frontend/%d/use_scpc_optimized_search_range" % (fe_id), "w")
-			f.write(configElement.value)
-			f.close()
+			open("/proc/stb/frontend/%d/use_scpc_optimized_search_range" % (fe_id), "w").write(configElement.value)
 
 	def toneAmplitudeChanged(configElement):
 		fe_id = configElement.fe_id
 		slot_id = configElement.slot_id
 		if os.path.exists("/proc/stb/frontend/%d/tone_amplitude" % fe_id):
-			f = open("/proc/stb/frontend/%d/tone_amplitude" % fe_id, "w")
-			f.write(configElement.value)
-			f.close()
+			open("/proc/stb/frontend/%d/tone_amplitude" % (fe_id), "w").write(configElement.value)
 
 	def t2miRawModeChanged(configElement):
 		slot = configElement.slot
@@ -1582,7 +1567,7 @@ def InitNimManager(nimmgr, update_slots=[]):
 		nim.t2miRawMode.slot = slot_id
 		nim.t2miRawMode.addNotifier(t2miRawModeChanged)
 		nim.diseqc13V = ConfigYesNo(False)
-		nim.diseqcMode = ConfigSelection(diseqc_mode_choices, "single")
+		nim.diseqcMode = ConfigSelection(diseqc_mode_choices, "diseqc_a_b")
 		nim.connectedTo = ConfigSelection([(str(id), nimmgr.getNimDescription(id)) for id in nimmgr.getNimListOfType("DVB-S") if id != slot_id])
 		nim.simpleSingleSendDiSEqC = ConfigYesNo(False)
 		nim.simpleDiSEqCSetVoltageTone = ConfigYesNo(True)

@@ -1,4 +1,4 @@
-from enigma import eDVBResourceManager, eDVBFrontendParametersSatellite, eDVBFrontendParametersTerrestrial, eTimer
+from enigma import eDVBResourceManager, eDVBFrontendParametersSatellite, eDVBFrontendParametersTerrestrial
 
 from Screens.ScanSetup import ScanSetup, buildTerTransponder
 from Screens.ServiceScan import ServiceScan
@@ -60,8 +60,6 @@ class Satfinder(ScanSetup, ServiceScan):
 		self.frontend = None
 		self.is_id_boolEntry = None
 		self.t2mi_plp_id_boolEntry = None
-		self.timer = eTimer()
-		self.timer.callback.append(self.updateFrontendStatus)
 
 		ScanSetup.__init__(self, session)
 		self.entryChanged = self.newConfig
@@ -103,15 +101,6 @@ class Satfinder(ScanSetup, ServiceScan):
 						self.frontend = None # in normal case this should not happen
 		self.tuner = Tuner(self.frontend)
 		self.retune()
-
-	def updateFrontendStatus(self):
-		if self.frontend:
-			dict = {}
-			self.frontend.getFrontendStatus(dict)
-			if dict["tuner_state"] == "FAILED" or dict["tuner_state"] == "LOSTLOCK":
-				self.retune()
-			else:
-				self.timer.start(500, True)
 
 	def __onClose(self):
 		self.session.nav.playService(self.session.postScanService)
@@ -514,7 +503,6 @@ class Satfinder(ScanSetup, ServiceScan):
 			self.retuneCab()
 		elif self.DVB_type.value == "ATSC":
 			self.retuneATSC()
-		self.timer.start(500, True)
 
 	def keyGoScan(self):
 		self.frontend = None

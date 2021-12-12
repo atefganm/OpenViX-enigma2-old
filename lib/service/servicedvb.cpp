@@ -30,10 +30,6 @@
 #include <byteswap.h>
 #include <netinet/in.h>
 
-#include <iostream>
-#include <fstream>
-using namespace std;
-
 #ifndef BYTE_ORDER
 #error no byte order defined!
 #endif
@@ -1329,8 +1325,9 @@ RESULT eDVBServicePlay::start()
 	bool scrambled = true;
 	int packetsize = 188;
 	eDVBServicePMTHandler::serviceType type = eDVBServicePMTHandler::livetv;
+
 	if(tryFallbackTuner(/*REF*/service, /*REF*/m_is_stream, m_is_pvr, /*simulate*/false))
-		eDebug("[eDVBServicePlay] fallback tuner selected");
+		eDebug("ServicePlay: fallback tuner selected");
 
 		/* in pvr mode, we only want to use one demux. in tv mode, we're using
 		   two (one for decoding, one for data source), as we must be prepared
@@ -1438,13 +1435,6 @@ RESULT eDVBServicePlay::stop()
 
 	m_nownext_timer->stop();
 	m_event((iPlayableService*)this, evStopped);
-
-	// In case the event callout changes the cue sheet
-	if ((m_is_pvr || m_timeshift_enabled) && m_cuesheet_changed)
-	{
-		saveCuesheet();
-	}
-
 	return 0;
 }
 
@@ -1527,17 +1517,7 @@ RESULT eDVBServicePlay::setFastForward_internal(int ratio, bool final_seek)
 	{
 		eDebug("[eDVBServicePlay] setFastForward setting cue skipmode to %d", skipmode);
 		if (m_cue)
-		{
-			long long _skipmode = skipmode;
-			if (!m_timeshift_active && (m_current_video_pid_type == eDVBServicePMTHandler::videoStream::vtH265_HEVC))
-			{
-				if (ratio < 0)
-					_skipmode = skipmode * 3;
-				else
-					_skipmode = skipmode * 4;
-			}
-			m_cue->setSkipmode(_skipmode * 90000); /* convert to 90000 per second */
-		}
+			m_cue->setSkipmode(skipmode * 90000); /* convert to 90000 per second */
 	}
 
 	m_skipmode = skipmode;
@@ -1737,7 +1717,7 @@ RESULT eDVBServicePlay::subServices(ePtr<iSubserviceList> &ptr)
 RESULT eDVBServicePlay::timeshift(ePtr<iTimeshiftService> &ptr)
 {
 	ptr = nullptr;
-	/* eDebug("[eDVBServicePlay] timeshift"); */
+	eDebug("[eDVBServicePlay] timeshift");
 	if (m_timeshift_enabled || !m_is_pvr)
 	{
 		if (!m_timeshift_enabled)
@@ -1758,9 +1738,9 @@ RESULT eDVBServicePlay::timeshift(ePtr<iTimeshiftService> &ptr)
 				return -2;
 			}
 
-			if (((off_t)fs.f_bavail) * ((off_t)fs.f_bsize) < 1024*1024*1024LL)
+			if (((off_t)fs.f_bavail) * ((off_t)fs.f_bsize) < 200*1024*1024LL)
 			{
-				eDebug("[eDVBServicePlay] timeshift not enough diskspace for timeshift! (less than 1GB)");
+				eDebug("[eDVBServicePlay] timeshift not enough diskspace for timeshift! (less than 200MB)");
 				return -3;
 			}
 		}
@@ -2225,11 +2205,7 @@ int eDVBServicePlay::selectAudioStream(int i)
 		int different_pid = program.videoStreams.empty() && program.audioStreams.size() == 1 && program.audioStreams[stream].rdsPid != -1;
 		if (different_pid)
 			rdsPid = program.audioStreams[stream].rdsPid;
-#if HAVE_HISILICON
-		if (different_pid && (!m_rds_decoder || m_rds_decoder->getPid() != rdsPid))
-#else 
 		if (!m_rds_decoder || m_rds_decoder->getPid() != rdsPid)
-#endif
 		{
 			m_rds_decoder = 0;
 			ePtr<iDVBDemux> data_demux;
@@ -2372,7 +2348,7 @@ bool eDVBServiceBase::tryFallbackTuner(eServiceReferenceDVB &service, bool &is_s
 {
 	ePtr<eDVBResourceManager> res_mgr;
 	std::ostringstream remote_service_ref;
-	std::string remote_service_args;
+	std::string remote_service_args, remote_fallback_url;
 	eDVBChannelID chid, chid_ignore;
 	int system;
 	size_t index;
@@ -2383,19 +2359,38 @@ bool eDVBServiceBase::tryFallbackTuner(eServiceReferenceDVB &service, bool &is_s
 	if (!eConfigManager::getConfigBoolValue("config.usage.remote_fallback_enabled", false))
 		return false;
 
-	std::string remote_fallback_url =
-		eConfigManager::getConfigValue("config.usage.remote_fallback");
-
-	if (remote_fallback_url.empty() && !getAnyPeerStreamingBox(remote_fallback_url))
-		return false;
-
 	if (eDVBResourceManager::getInstance(res_mgr))
 		return false;
-
 	service.getChannelID(chid); 						// this sets chid
 	eServiceReferenceDVB().getChannelID(chid_ignore);	// this sets chid_ignore
-
 	if(res_mgr->canAllocateChannel(chid, chid_ignore, system))	// this sets system
+		return false;
+
+	if (eConfigManager::getConfigBoolValue("config.usage.remote_fallback_alternative", false) && !(system == iDVBFrontend::feSatellite))
+	{
+		switch (system)
+		{
+			case iDVBFrontend::feTerrestrial:
+			{
+				remote_fallback_url = eConfigManager::getConfigValue("config.usage.remote_fallback_dvb_t");
+				break;
+			}
+			case iDVBFrontend::feCable:
+			{
+				remote_fallback_url = eConfigManager::getConfigValue("config.usage.remote_fallback_dvb_c");
+				break;
+			}
+			case iDVBFrontend::feATSC:
+			{
+				remote_fallback_url = eConfigManager::getConfigValue("config.usage.remote_fallback_atsc");
+				break;
+			}
+		}
+	}
+	else
+		remote_fallback_url = eConfigManager::getConfigValue("config.usage.remote_fallback");
+
+	if (remote_fallback_url.empty() && !getAnyPeerStreamingBox(remote_fallback_url))
 		return false;
 
 	while((index = remote_fallback_url.find(':')) != std::string::npos)
@@ -2431,9 +2426,10 @@ bool eDVBServiceBase::tryFallbackTuner(eServiceReferenceDVB &service, bool &is_s
 
 	for(index = 0; index < 8; index++)
 		remote_service_ref << std::hex << "%3a" << service.getData(index);
+
 	remote_service_ref << remote_service_args;
 
-	eDebug("[eDVBServiceBase] Fallback tuner: redirected unavailable service to: %s\n", remote_service_ref.str().c_str());
+	eDebug("Fallback tuner: redirected unavailable service to: %s\n", remote_service_ref.str().c_str());
 
 	service = eServiceReferenceDVB(remote_service_ref.str());
 
@@ -2548,14 +2544,6 @@ RESULT eDVBServicePlay::startTimeshift()
 	m_timeshift_fd = mkstemp(templ);
 	m_timeshift_file = std::string(templ);
 	eDebug("[eDVBServicePlay] timeshift recording to %s", templ);
-
-	ofstream fileout;
-	fileout.open("/proc/stb/lcd/symbol_timeshift");
-	if(fileout.is_open())
-	{
-		fileout << "1";
-	}
-
 	delete [] templ;
 
 	if (m_timeshift_fd < 0)
@@ -2592,13 +2580,6 @@ RESULT eDVBServicePlay::stopTimeshift(bool swToLive)
 	{
 		close(m_timeshift_fd);
 		m_timeshift_fd = -1;
-	}
-
-	ofstream fileout;
-	fileout.open("/proc/stb/lcd/symbol_timeshift");
-	if(fileout.is_open())
-	{
-		fileout << "0";
 	}
 
 	if (!m_save_timeshift)
@@ -3039,14 +3020,13 @@ void eDVBServicePlay::updateDecoder(bool sendSeekableStateChanged)
 		}
 
 		m_decoder->setVideoPID(vpid, vpidtype);
-		m_current_video_pid_type = vpidtype;
 		m_have_video_pid = (vpid > 0 && vpid < 0x2000);
 
 		if (!m_noaudio)
 		{
 			selectAudioStream();
 		}
-		
+
 		if (!(m_is_pvr || m_is_stream || m_timeshift_active))
 			m_decoder->setSyncPCR(pcrpid);
 		else

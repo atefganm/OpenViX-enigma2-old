@@ -748,6 +748,10 @@ void eDVBScan::channelDone()
 				SCAN_eDebug("[eDVBScan] ignoring NetworkId %d!", (*i)->getTableIdExtension());
 				continue;
 			}
+			else
+			{
+				SCAN_eDebug("[eDVBScan] m_networkid %d getTableIdExtension %d", m_networkid, (*i)->getTableIdExtension());
+			}
 
 			const TransportStreamInfoList &tsinfovec = *(*i)->getTsInfo();
 
@@ -1189,17 +1193,6 @@ void eDVBScan::insertInto(iDVBChannelList *db, bool backgroundscanresult)
 		bool clearTerrestrial=false;
 		bool clearCable=false;
 		std::set<unsigned int> scanned_sat_positions;
-
-		for (std::map<eServiceReferenceDVB, ePtr<eDVBService> >::const_iterator
-			service(m_new_services.begin()); service != m_new_services.end(); ++service)
-		{
-			ePtr<eDVBService> dvb_service;
-			if (!db->getService(service->first, dvb_service))
-			{
-				if (dvb_service->m_flags & eDVBService::dxDontshow)
-					service->second->m_flags |= eDVBService::dxDontshow;
-			}
-		}
 
 		std::list<ePtr<iDVBFrontendParameters> >::iterator it(m_ch_scanned.begin());
 		for (;it != m_ch_scanned.end(); ++it)

@@ -601,8 +601,14 @@ bool eListboxServiceContent::checkServiceIsRecorded(eServiceReference ref)
 		{
 			ePtr<iDVBChannelList> db;
 			ePtr<eDVBResourceManager> res;
-			eDVBResourceManager::getInstance(res);
-			res->getChannelList(db);
+			if (eDVBResourceManager::getInstance(res) == -1)
+			{
+				return false;
+			}
+			if (res->getChannelList(db) < 0)
+			{
+				return false;
+			}
 			eBouquet *bouquet = NULL;
 			if (!db->getBouquet(ref, bouquet))
 			{
@@ -690,7 +696,7 @@ void eListboxServiceContent::paint(gPainter &painter, eWindowStyle &style, const
 	} else
 	{
 		if (local_style->m_background)
-			painter.blit(local_style->m_background, offset, eRect(), gPainter::BT_ALPHATEST);
+			painter.blit(local_style->m_background, offset, eRect(), gPainter::BT_ALPHABLEND);
 		else if (selected && !local_style->m_selection)
 			painter.clear();
 	}
@@ -741,7 +747,7 @@ void eListboxServiceContent::paint(gPainter &painter, eWindowStyle &style, const
 		}
 
 		if (selected && local_style && local_style->m_selection)
-			painter.blit(local_style->m_selection, offset, eRect(), gPainter::BT_ALPHATEST);
+			painter.blit(local_style->m_selection, offset, eRect(), gPainter::BT_ALPHABLEND);
 
 		int xoffset=0;  // used as offset when painting the folder/marker symbol or the serviceevent progress
 		int nameLeft=0, nameWidth=0, nameYoffs=0, nextYoffs=0; // used as temporary values for 'show two lines' option
@@ -1127,7 +1133,7 @@ void eListboxServiceContent::paint(gPainter &painter, eWindowStyle &style, const
 			ePtr<gPixmap> &pixmap = m_pixmaps[picServiceEventProgressbar];
 			if (pixmap) {
 				painter.clip(tmp);
-				painter.blit(pixmap, ePoint(pb_xpos + m_progressbar_border_width, pb_ypos + m_progressbar_border_width), tmp, gPainter::BT_ALPHATEST);
+				painter.blit(pixmap, ePoint(pb_xpos + m_progressbar_border_width, pb_ypos + m_progressbar_border_width), tmp, gPainter::BT_ALPHABLEND);
 				painter.clippop();
 			}
 			else {
@@ -1155,16 +1161,10 @@ void eListboxServiceContent::paint(gPainter &painter, eWindowStyle &style, const
 			}
 			painter.setForegroundColor(ProgressbarBorderColor);
 
-			if (m_progressbar_border_width)
-			{
-				painter.fill(eRect(pb_xpos, pb_ypos, pb_width + 2 * m_progressbar_border_width,  m_progressbar_border_width));
-				painter.fill(eRect(pb_xpos, pb_ypos + m_progressbar_border_width + m_progressbar_height, pb_width + 2 * m_progressbar_border_width,  m_progressbar_border_width));
-				painter.fill(eRect(pb_xpos, pb_ypos + m_progressbar_border_width, m_progressbar_border_width, m_progressbar_height));
-				painter.fill(eRect(pb_xpos + m_progressbar_border_width + pb_width, pb_ypos + m_progressbar_border_width, m_progressbar_border_width, m_progressbar_height));
-			}
-			else
-				painter.fill(eRect(pb_xpos + evt_done, pb_ypos, pb_width - evt_done,  m_progressbar_height));
-
+			painter.fill(eRect(pb_xpos, pb_ypos, pb_width + 2 * m_progressbar_border_width,  m_progressbar_border_width));
+			painter.fill(eRect(pb_xpos, pb_ypos + m_progressbar_border_width + m_progressbar_height, pb_width + 2 * m_progressbar_border_width,  m_progressbar_border_width));
+			painter.fill(eRect(pb_xpos, pb_ypos + m_progressbar_border_width, m_progressbar_border_width, m_progressbar_height));
+			painter.fill(eRect(pb_xpos + m_progressbar_border_width + pb_width, pb_ypos + m_progressbar_border_width, m_progressbar_border_width, m_progressbar_height));
 		}
 	}
 	painter.clippop();

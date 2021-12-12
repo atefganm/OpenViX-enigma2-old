@@ -304,14 +304,13 @@ public:
 		dxHoldName=8,
 		dxNewFound=64,
 		dxIsDedicated3D=128,
-		dxIsParentalProtected=256,
 		dxIsScrambledPMT=1024,
 		dxCenterDVBSubs=2048,
 		dxNoEIT=4096,
 	};
 
 	bool usePMT() const { return !(m_flags & dxNoDVB); }
-	bool isHidden() const { return (m_flags & dxDontshow || m_flags & dxIsParentalProtected); }
+	bool isHidden() const { return m_flags & dxDontshow; }
 	bool isDedicated3D() const { return m_flags & dxIsDedicated3D; }
 	bool doCenterDVBSubs() const { return m_flags & dxCenterDVBSubs; }
 	bool useEIT() const { return !(m_flags & dxNoEIT); }

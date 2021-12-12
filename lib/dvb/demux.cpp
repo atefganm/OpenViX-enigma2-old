@@ -6,7 +6,9 @@
 #include <signal.h>
 #include <sys/sysinfo.h>
 #include <sys/mman.h>
+
 #include <linux/dvb/dmx.h>
+
 #include <lib/base/eerror.h>
 #include <lib/base/cfile.h>
 #include <lib/dvb/idvb.h>
@@ -84,10 +86,14 @@ int eDVBDemux::openDemux(void)
 
 int eDVBDemux::openDVR(int flags)
 {
+#ifdef HAVE_OLDPVR
+	return ::open("/dev/misc/pvr", flags);
+#else
 	char filename[32];
 	snprintf(filename, sizeof(filename), "/dev/dvb/adapter%d/dvr%d", adapter, demux);
 	eDebug("[eDVBDemux] open dvr %s", filename);
 	return ::open(filename, flags);
+#endif
 }
 
 DEFINE_REF(eDVBDemux)
@@ -647,7 +653,7 @@ void eDVBRecordFileThread::flush()
 		it->wait();
 	}
 	int bufferCount = m_aio.size();
-	eDebug("[eDVBRecordFileThread] buffer usage histogram (%d buffers of %zd kB)", bufferCount, m_buffersize>>10);
+	eDebug("[eDVBRecordFileThread] buffer usage histogram (%d buffers of %jd kB)", bufferCount, (intmax_t)m_buffersize>>10);
 	for (int i=0; i <= bufferCount; ++i)
 	{
 		if (m_buffer_use_histogram[i] != 0)
@@ -668,7 +674,6 @@ eDVBRecordStreamThread::eDVBRecordStreamThread(int packetsize, int buffersize, b
 {
 	eDebug("[eDVBRecordStreamThread] allocated %zu buffers of %zu kB", m_aio.size(), m_buffersize>>10);
 }
-
 
 int eDVBRecordStreamThread::writeData(int len)
 {
@@ -795,7 +800,11 @@ RESULT eDVBTSRecorder::start()
 	char filename[128];
 	snprintf(filename, 128, "/dev/dvb/adapter%d/demux%d", m_demux->adapter, m_demux->demux);
 
+#if HAVE_HISILICON
+	m_source_fd = ::open(filename, O_RDONLY | O_CLOEXEC | O_NONBLOCK);
+#else
 	m_source_fd = ::open(filename, O_RDONLY | O_CLOEXEC);
+#endif
 
 	if (m_source_fd < 0)
 	{

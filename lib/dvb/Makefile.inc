@@ -15,6 +15,7 @@ dvb_libenigma_dvb_a_SOURCES = \
 	dvb/epgtransponderdatareader.cpp \
 	dvb/esection.cpp \
 	dvb/fastscan.cpp \
+	dvb/fbc.cpp \
 	dvb/filepush.cpp \
 	dvb/frontend.cpp \
 	dvb/frontendparms.cpp \
@@ -34,7 +35,6 @@ dvb_libenigma_dvb_a_SOURCES = \
 	dvb/streamserver.cpp \
 	dvb/pmtparse.cpp \
 	dvb/encoder.cpp \
-	dvb/fbc.cpp \
 	dvb/atsc.cpp
 
 dvbincludedir = $(pkgincludedir)/lib/dvb
@@ -54,6 +54,7 @@ dvbinclude_HEADERS = \
 	dvb/epgtransponderdatareader.h \
 	dvb/esection.h \
 	dvb/fastscan.h \
+	dvb/fbc.h \
 	dvb/filepush.h \
 	dvb/frontend.h \
 	dvb/frontendparms.h \
@@ -78,5 +79,4 @@ dvbinclude_HEADERS = \
 	dvb/streamserver.h \
 	dvb/pmtparse.h \
 	dvb/encoder.h \
-	dvb/fbc.h \
 	dvb/atsc.h

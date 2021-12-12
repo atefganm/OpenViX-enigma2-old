@@ -123,6 +123,13 @@ int eDVBPMTParser::getProgramInfo(program &program)
 						isvideo = 1;
 					}
 					[[fallthrough]];
+				case 0xD2: // CAVS2
+					if (!isvideo)
+					{
+						video.type = videoStream::vtAVS2;
+						isvideo = 1;
+					}
+					[[fallthrough]];
 				case 0x10: // MPEG 4 Part 2
 					if (!isvideo)
 					{
@@ -237,8 +244,8 @@ int eDVBPMTParser::getProgramInfo(program &program)
 									s.subtitling_type = it->getSubtitlingType();
 									switch(s.subtitling_type)
 									{
-									case 0x10 ... 0x13: // dvb subtitles normal
-									case 0x20 ... 0x23: // dvb subtitles hearing impaired
+									case 0x10 ... 0x15: // dvb subtitles normal
+									case 0x20 ... 0x25: // dvb subtitles hearing impaired
 										break;
 									default:
 										eDebug("[eDVBPMTParser] dvb subtitle %s PID %04x with wrong subtitling type (%02x)... force 0x10!!",

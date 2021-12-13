@@ -24,7 +24,7 @@ public:
 
 	RESULT createSectionReader(eMainloop *context, ePtr<iDVBSectionReader> &reader);
 	RESULT createPESReader(eMainloop *context, ePtr<iDVBPESReader> &reader);
-	RESULT createTSRecorder(ePtr<iDVBTSRecorder> &recorder, int packetsize = 188, bool streaming=false);
+	RESULT createTSRecorder(ePtr<iDVBTSRecorder> &recorder, unsigned int packetsize = 188, bool streaming=false);
 	RESULT getMPEGDecoder(ePtr<iTSMPEGDecoder> &reader, int index);
 	RESULT getSTC(pts_t &pts, int num);
 	RESULT getCADemuxID(uint8_t &id) { id = demux; return 0; }
@@ -49,7 +49,12 @@ private:
 	friend class eDVBTSRecorder;
 	friend class eDVBCAService;
 	friend class eTSMPEGDecoder;
+#ifdef HAVE_AMLOGIC
+	int m_pvr_fd;
+	friend class eAMLTSMPEGDecoder;
+#endif
 	sigc::signal1<void, int> m_event;
+
 	int openDemux(void);
 };
 
@@ -93,7 +98,7 @@ public:
 class eDVBRecordFileThread: public eFilePushThreadRecorder
 {
 public:
-	eDVBRecordFileThread(int packetsize, int bufferCount, int buffersize = -1, bool sync_mode = false);
+	eDVBRecordFileThread(int packetsize, int bufferCount);
 	~eDVBRecordFileThread();
 	void setTimingPID(int pid, iDVBTSRecorder::timing_pid_type pidtype, int streamtype);
 	void startSaveMetaInformation(const std::string &filename);
@@ -113,7 +118,7 @@ protected:
 		unsigned char* buffer;
 		AsyncIO()
 		{
-			memset(&aio, 0, sizeof(aiocb));
+			memset(&aio, 0, sizeof(struct aiocb));
 			buffer = NULL;
 		}
 		int wait();
@@ -124,7 +129,6 @@ protected:
 	eMPEGStreamParserTS m_ts_parser;
 	off_t m_current_offset;
 	int m_fd_dest;
-	bool m_sync_mode;
 	typedef std::vector<AsyncIO> AsyncIOvector;
 	unsigned char* m_allocated_buffer;
 	AsyncIOvector m_aio;
@@ -135,7 +139,7 @@ protected:
 class eDVBRecordStreamThread: public eDVBRecordFileThread
 {
 public:
-	eDVBRecordStreamThread(int packetsize, int buffersize = -1, bool sync_mode = false);
+	eDVBRecordStreamThread(int packetsize);
 
 protected:
 	int writeData(int len);
@@ -184,6 +188,7 @@ private:
 	eDVBRecordFileThread *m_thread;
 	std::string m_target_filename;
 	int m_packetsize;
+	friend class eRTSPStreamClient;
 };
 
 #endif

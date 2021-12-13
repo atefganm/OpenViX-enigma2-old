@@ -14,6 +14,7 @@
 #include <dvbsi++/network_name_descriptor.h>
 #include <dvbsi++/service_list_descriptor.h>
 #include <dvbsi++/satellite_delivery_system_descriptor.h>
+#include <dvbsi++/s2_satellite_delivery_system_descriptor.h>
 
 /* HACK: fastscan table uses a nonstandard version of the LogicalChannel descriptor, with 14bit channel numbers (instead of 10bit), and a nonstandard definition of a 'hidden' flag */
 class FastScanLogicalChannel
@@ -121,7 +122,7 @@ public:
 	uint8_t getRollOff(void) const;
 	uint8_t getModulationSystem(void) const;
 	uint8_t getModulation(void) const;
-	int32_t getSymbolRate(void) const;
+	uint32_t getSymbolRate(void) const;
 	uint8_t getFecInner(void) const;
 
 	const ServiceListItemList *getServiceList(void) const;

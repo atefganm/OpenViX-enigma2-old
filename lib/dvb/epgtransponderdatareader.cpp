@@ -233,14 +233,9 @@ void eEPGTransponderDataReader::DVBChannelAdded(eDVBChannel *chan)
 		data->m_PrivatePid = -1;
 #endif
 #ifdef ENABLE_MHW_EPG
-		data->m_mhw2_channel_pid = 0x231; // defaults for astra 19.2 Movistar+
-		if (eEPGCache::getInstance()->getEpgmaxdays() < 4){
-			data->m_mhw2_title_pid = 0x234; // defaults for astra 19.2 Movistar+
-			data->m_mhw2_summary_pid = 0x236; // defaults for astra 19.2 Movistar+
-		} else {
-			data->m_mhw2_title_pid = 0x284; // change for fix 7 days epg Movistar+
-			data->m_mhw2_summary_pid = 0x282; // change for fix 7 days epg Movistar+
-		}
+		data->m_mhw2_channel_pid = 0x231; // defaults for astra 19.2 D+
+		data->m_mhw2_title_pid = 0x234; // defaults for astra 19.2 D+
+		data->m_mhw2_summary_pid = 0x236; // defaults for astra 19.2 D+
 #endif
 		singleLock s(known_channel_lock);
 		m_knownChannels.insert( std::pair<iDVBChannel*, eEPGChannelData* >(chan, data) );
@@ -551,7 +546,7 @@ void eEPGTransponderDataReader::PMTready(eDVBServicePMTHandler *pmthandler)
 								if (((PrivateDataSpecifierDescriptor*)(*desc))->getPrivateDataSpecifier() == 190)
 									tmp |= 1;
 								break;
-							case 0x90: // OpenTV module descriptor?
+							case 0x90:
 							{
 								Descriptor *descr = (Descriptor*)*desc;
 								int descr_len = descr->getLength();

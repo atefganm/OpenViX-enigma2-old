@@ -124,7 +124,7 @@ int eDVBTSTools::getPTS(off_t &offset, pts_t &pts, int fixed)
 						// obsolete data that happens to have a '1' there
 						continue;
 					}
-					eDebug("[eDVBTSTools] getPTS got it from sc file offset=%lld pts=%lld", local_offset, pts);
+					eDebug("[eDVBTSTools] getPTS got it from sc file offset=%llu pts=%llu", local_offset, pts);
 					if (fixed && fixupPTS(local_offset, pts))
 					{
 						eDebug("[eDVBTSTools]    But failed to fixup!");
@@ -170,7 +170,7 @@ int eDVBTSTools::getPTS(off_t &offset, pts_t &pts, int fixed)
 			const unsigned char* match = (const unsigned char*)memchr(packet+1, 0x47, 188-1);
 			if (match != NULL)
 			{
-				eDebug("[eDVBTSTools] getPTS resync %ju", (intmax_t)(match - packet));
+				eDebug("[eDVBTSTools] getPTS resync %d", match - packet);
 				offset += (match - packet) - 188;
 			}
 			else
@@ -330,7 +330,7 @@ int eDVBTSTools::fixupPTS(const off_t &offset, pts_t &now)
 		calcBegin();
 		if (!m_begin_valid)
 		{
-			eDebug("[eDVBTSTools] fixupPTS begin not valid, can't fixup");
+//			eDebug("[eDVBTSTools] fixupPTS begin not valid, can't fixup");
 			return -1;
 		}
 
@@ -412,7 +412,7 @@ int eDVBTSTools::getOffset(off_t &offset, pts_t &pts, int marg)
 					continue;
 				}
 
-				eDebug("[eDVBTSTools] getOffset using: %lld:%lld -> %jd:%jd", l->first, u->first, (intmax_t)l->second, (intmax_t)u->second);
+				eDebug("[eDVBTSTools] getOffset using: %llu:%llu -> %llu:%llu", l->first, u->first, l->second, u->second);
 
 				int bitrate;
 
@@ -462,7 +462,7 @@ int eDVBTSTools::getOffset(off_t &offset, pts_t &pts, int marg)
 			if (p != -1)
 			{
 				pts = p;
-				eDebug("[eDVBTSTools] getOffset aborting. Taking %lld as offset for %lld", offset, pts);
+				eDebug("[eDVBTSTools] getOffset aborting. Taking %llu as offset for %lld", offset, pts);
 				return 0;
 			}
 		}
@@ -494,7 +494,7 @@ void eDVBTSTools::calcBegin()
 			pts_t pts = m_pts_begin;
 			if (m_streaminfo.fixupPTS(begin, pts) == 0)
 			{
-				eDebug("[eDVBTSTools] calcBegin [@ML] m_streaminfo.getLastFrame returned %lld, %lld (%us), fixup to: %lld, %lld (%us)",
+				eDebug("[eDVBTSTools] calcBegin [@ML] m_streaminfo.getLastFrame returned %llu, %llu (%us), fixup to: %llu, %llu (%us)",
 				       m_offset_begin, m_pts_begin, (unsigned int)(m_pts_begin/90000), begin, pts, (unsigned int)(pts/90000));
 			}
 			m_begin_valid = 1;
@@ -568,7 +568,7 @@ void eDVBTSTools::calcEnd()
 		}
 		else
 		{
-			eDebug("[eDVBTSTools] calcEnd [@ML] m_streaminfo.getLastFrame failed, fallback");
+//			eDebug("[eDVBTSTools] calcEnd [@ML] m_streaminfo.getLastFrame failed, fallback");
 			while (!(m_end_valid || m_futile))
 			{
 				if (!--maxiter)
@@ -651,7 +651,7 @@ void eDVBTSTools::takeSamples()
 
 	bytes_per_sample -= bytes_per_sample % m_packet_size;
 
-	eDebug("[eDVBTSTools] takeSamples step %lld, pts begin %lld, pts end %lld, offs begin %lld, offs end %lld:",
+	eDebug("[eDVBTSTools] takeSamples step %lld, pts begin %llu, pts end %llu, offs begin %lld, offs end %lld:",
 		bytes_per_sample, m_pts_begin, m_pts_end, m_offset_begin, m_offset_end);
 
 	for (off_t offset = m_offset_begin; offset < m_offset_end;)
@@ -688,14 +688,14 @@ int eDVBTSTools::takeSample(off_t off, pts_t &p)
 			{
 				if ((l->second > off) || (u->second < off))
 				{
-					eDebug("[eDVBTSTools] takeSample ignoring sample %jd %jd %jd (%llu %llu %llu)",
-						(intmax_t)l->second, (intmax_t)off, (intmax_t)u->second, l->first, p, u->first);
+					eDebug("[eDVBTSTools] takeSample ignoring sample %lld %lld %lld (%llu %llu %llu)",
+						l->second, off, u->second, l->first, p, u->first);
 					return 1;
 				}
 			}
 		}
 
-		eDebug("[eDVBTSTools] takeSample adding sample %lld: pts %lld -> pos %lld (diff %lld bytes)", offset_org, p, off, off-offset_org);
+		eDebug("[eDVBTSTools] takeSample adding sample %lld: pts %llu -> pos %lld (diff %lld bytes)", offset_org, p, off, off-offset_org);
 		m_samples[p] = off;
 		return 0;
 	}
@@ -788,7 +788,7 @@ int eDVBTSTools::findPMT(eDVBPMTParser::program &program)
 
 int eDVBTSTools::findFrame(off_t &_offset, size_t &len, int &direction, int frame_types)
 {
-//	eDebug("[eDVBTSTools] findFrame trying to find iFrame at %lld", offset);
+//	eDebug("[eDVBTSTools] findFrame trying to find iFrame at %llu", offset);
 	if (!m_streaminfo.hasStructure())
 	{
 //		eDebug("[eDVBTSTools] findFrame can't get next iframe without streaminfo");
@@ -806,7 +806,7 @@ int eDVBTSTools::findFrame(off_t &_offset, size_t &len, int &direction, int fram
 	unsigned long long longdata;
 	if (m_streaminfo.getStructureEntryFirst(offset, longdata) != 0)
 	{
-		eDebug("[eDVBTSTools] findFrame getStructureEntryFirst failed");
+		eDebug("[eDVBTSTools] findFramee getStructureEntryFirst failed");
 		return -1;
 	}
 	if (direction == 0)
@@ -911,14 +911,14 @@ int eDVBTSTools::findFrame(off_t &_offset, size_t &len, int &direction, int fram
 		direction = -nr_frames;
 	else
 		direction = nr_frames;
-//	eDebug("[eDVBTSTools] findFrame result: offset=%lld, len: %ld", offset, (int)len);
+//	eDebug("[eDVBTSTools] findFrame result: offset=%llu, len: %ld", offset, (int)len);
 	return 0;
 }
 
 int eDVBTSTools::findNextPicture(off_t &offset, size_t &len, int &distance, int frame_types)
 {
 	int nr_frames, direction;
-//	eDebug("[eDVBTSTools] findNextPicture trying to move %d frames at %lld", distance, offset);
+//	eDebug("[eDVBTSTools] findNextPicture trying to move %d frames at %llu", distance, offset);
 
 	frame_types = frametypeI; /* TODO: intelligent "allow IP frames when not crossing an I-Frame */
 
@@ -973,7 +973,7 @@ int eDVBTSTools::findNextPicture(off_t &offset, size_t &len, int &distance, int 
 
 		distance -= abs(dir);
 
-//		eDebug("[eDVBTSTools] findNextPicture we moved %d, %d to go frames (now at %lld)", dir, distance, new_offset);
+//		eDebug("[eDVBTSTools] findNextPicture we moved %d, %d to go frames (now at %llu)", dir, distance, new_offset);
 
 		if (distance >= 0 || direction == 0)
 		{
